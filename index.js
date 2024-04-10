@@ -1,6 +1,11 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const ytdl = require('ytdl-core');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegStatic = require('ffmpeg-static');
+ffmpeg.setFfmpegPath(ffmpegStatic);
+
 const port = 3000;
 
 
@@ -38,7 +43,7 @@ const server = http.createServer(function(req, res) {
                 console.log("clientData.link: " + clientData.link) // Log requested link
                 console.log("Link Type: " + musicPlatform + " " + type) // Log link info
 
-                if (musicPlatform == 'invalid') {
+                if (musicPlatform == 'invalid' || type == 'invalid') {
                     // Let user know the link is invalid
                     if(!responseSent) {
                         res.writeHead(200, {'Content-Type': 'application/json'});
@@ -47,12 +52,33 @@ const server = http.createServer(function(req, res) {
                     }
                 }
                 else {
-                    // download song or playlist and send back to user here ---------------------
+                    // download song or playlist and send back to user
                     if (!responseSent) {
-                        // Send a response back to the client
-                        res.writeHead(200, {'Content-Type': 'application/json'});
-                        res.end(JSON.stringify({ message: 'Request received' }))
-                        responseSent = true
+                        if (musicPlatform === 'youtube' && type === 'song') {
+                            ytdl.getInfo(clientData.link).then(info => {
+                                const title = info.videoDetails.title.replace(/[^\w\s]/gi, '');
+                                res.writeHead(200, {
+                                    'Content-Type': 'audio/mpeg',
+                                    'Content-Disposition': `attachment; filename="${title}.mp3"`
+                                });
+
+                                // Stream the audio from ytdl-core to ffmpeg to convert it to mp3
+                                const stream = ytdl(clientData.link, { quality: 'highestaudio', filter: 'audioonly' });
+                                ffmpeg(stream)
+                                    .audioBitrate(128)
+                                    .toFormat('mp3')
+                                    .on('error', (error) => {
+                                        console.log('Error: ' + error.message);
+                                        res.end();
+                                    })
+                                    .pipe(res, { end: true }); // Pipe mp3 to client
+
+                            }).catch(error => {
+                                console.error(error);
+                                res.writeHead(500, { 'Content-Type': 'application/json' });
+                                res.end(JSON.stringify({ error: 'Failed to download audio' }));
+                            });
+                        }
                     }
                 }
             } 
