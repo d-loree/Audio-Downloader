@@ -72,12 +72,19 @@ const server = http.createServer(function(req, res) {
                                         res.end();
                                     })
                                     .pipe(res, { end: true }); // Pipe mp3 to client
+                                    responseSent = true
 
                             }).catch(error => {
                                 console.error(error);
                                 res.writeHead(500, { 'Content-Type': 'application/json' });
                                 res.end(JSON.stringify({ error: 'Failed to download audio' }));
+                                responseSent = true
                             });
+                        }
+                        else {
+                            res.writeHead(200, {'Content-Type': 'application/json'});
+                            res.end(JSON.stringify({ error: 'Invalid Link' }))
+                            responseSent = true
                         }
                     }
                 }
