@@ -42,7 +42,7 @@ const server = http.createServer(function(req, res) {
                     // Let user know the link is invalid
                     if(!responseSent) {
                         res.writeHead(200, {'Content-Type': 'application/json'});
-                        res.end(JSON.stringify({ message: 'Invalid Link' }))
+                        res.end(JSON.stringify({ error: 'Invalid Link' }))
                         responseSent = true
                     }
                 }
