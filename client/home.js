@@ -4,11 +4,17 @@ const notifyText = document.getElementById('notify-msg-area');
 
 button.addEventListener('click', async _ => {
     try {   
-        const userLink = searchField.value;
+        const userLink = searchField.value.trim();
         searchField.value = ''
         notifyText.classList.remove("error");
         notifyText.style.display = "none";
         notifyText.innerHTML = ""; 
+
+        // Notify user of download attempt
+        notifyText.classList.remove("error");
+        notifyText.style.display = "flex";
+        notifyText.innerHTML = "Downloading Audio"; 
+
         const response = await fetch('requestDownload', {
             method: 'POST',
             headers: {
@@ -44,10 +50,6 @@ button.addEventListener('click', async _ => {
             }
         }
         else if (contentType.includes('audio/mpeg')) {
-            notifyText.classList.remove("error");
-            notifyText.style.display = "flex";
-            notifyText.innerHTML = "Downloading Audio..."; 
-
             // Handle MP3 file download
             response.blob().then(blob => {
                 const url = window.URL.createObjectURL(blob);
