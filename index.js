@@ -12,7 +12,7 @@ const port = 3000;
 
 // Get the link type: The music platform and its type, playlist or song
 let youtubeSongPattern = /^(?:https?:\/\/)?(?:www\.youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)(?:&.*)?$/;
-let youtubePlaylistPattern = /(?:https?:\/\/)?www\.youtube\.com\/.*[?&]list=([\w-]+)/;
+let youtubePlaylistPattern = /^https:\/\/www\.youtube\.com\/playlist\?list=(PL[a-zA-Z0-9_-]+)$/;
 function getLinkType(link) {
     if (youtubeSongPattern.test(link)) {
         return { musicPlatform: 'youtube', type: 'song' };
