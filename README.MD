@@ -11,3 +11,7 @@ Audio Downloader allows users to download songs from SoundCloud or YouTube for p
 ## Setup
 - Download or clone the repository
 
+- In the projects root directory, install dependencies using `npm install`
+
+## Running Server
+- In the directory with index.js, run `node ./index.js` to run the application
