@@ -59,7 +59,7 @@ const server = http.createServer(function(req, res) {
                                 const title = info.videoDetails.title.replace(/[^\w\s]/gi, '');
                                 res.writeHead(200, {
                                     'Content-Type': 'audio/mpeg',
-                                    'Content-Disposition': `attachment; filename="${title}.mp3"`
+                                    'filename': `${title}.mp3`
                                 });
 
                                 // Stream the audio from ytdl-core to ffmpeg to convert it to mp3

@@ -51,13 +51,15 @@ button.addEventListener('click', async _ => {
         }
         else if (contentType.includes('audio/mpeg')) {
             // Handle MP3 file download
+            filename = response.headers.get('filename')
+            
             response.blob().then(blob => {
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = url;
                 // Set the filename for the download here with the .mp3 extension
-                a.download = 'download.mp3';
+                a.download = filename;
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(url);
