@@ -12,7 +12,7 @@ const port = 3000;
 
 // Get the link type: The music platform and its type, playlist or song
 let youtubeSongPattern = /^(?:https?:\/\/)?(?:www\.youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)(?:&.*)?$/;
-let youtubePlaylistPattern = /(?:https?:\/\/)?www\.youtube\.com\/.*[?&]list=([\w-]+)/;
+let youtubePlaylistPattern = /^https:\/\/www\.youtube\.com\/playlist\?list=(PL[a-zA-Z0-9_-]+)$/;
 function getLinkType(link) {
     if (youtubeSongPattern.test(link)) {
         return { musicPlatform: 'youtube', type: 'song' };
@@ -59,7 +59,7 @@ const server = http.createServer(function(req, res) {
                                 const title = info.videoDetails.title.replace(/[^\w\s]/gi, '');
                                 res.writeHead(200, {
                                     'Content-Type': 'audio/mpeg',
-                                    'Content-Disposition': `attachment; filename="${title}.mp3"`
+                                    'filename': `${title}.mp3`
                                 });
 
                                 // Stream the audio from ytdl-core to ffmpeg to convert it to mp3
