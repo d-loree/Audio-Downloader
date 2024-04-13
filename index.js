@@ -32,18 +32,22 @@ async function fetchPlaylistSongs(playlistTestId) {
 
     // console.log(JSON.stringify(data.items)); // For testing purposes
 
-    let playlistVideoIds = []
+    let playlistVideosMap = new Map([]) // Store video ids with titles for file names
     data.items.forEach(song => {
-        playlistVideoIds.push(song.snippet.resourceId.videoId)
+        playlistVideosMap.set(song.snippet.resourceId.videoId, song.snippet.title)
     });
 
-    console.log("\nVideo Ids: " + playlistVideoIds)
+    console.log("\nVideos in playlist: ") // log videos in playlist, id and title
+    playlistVideosMap.forEach((value, key) => {
+        console.log(`${key}: ${value}`);
+    });
 }
 
 const server = http.createServer(function(req, res) {
 
     // Handle download request from users
     if (req.method === "POST" && req.url === '/requestDownload') {
+        fetchPlaylistSongs('PLPepSlipiG-YGiI2igngOC0wpKAsclGkx')
         let body = ''
         req.on('data', chunk => {
             // Convert Buffer to string
