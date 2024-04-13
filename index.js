@@ -9,6 +9,7 @@ require('dotenv').config();
 
 const port = 3000;
 const YOUTUBE_API_KEY= process.env.YOUTUBE_API_KEY
+const MAX_PLAYLIST_RESULTS = 20
 
 
 
@@ -25,12 +26,18 @@ function getLinkType(link) {
     }
 }
 
-const playlistTestId = 'PLPepSlipiG-YGiI2igngOC0wpKAsclGkx'
-async function fetchPlaylistSongs() {
-    console.log("TEST")
-    const response = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistTestId}&key=${YOUTUBE_API_KEY}&maxResults=20`);
+async function fetchPlaylistSongs(playlistTestId) {
+    const response = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistTestId}&key=${YOUTUBE_API_KEY}&maxResults=${MAX_PLAYLIST_RESULTS}`);
     const data = await response.json();
-    console.log(JSON.stringify(data.items));
+
+    // console.log(JSON.stringify(data.items)); // For testing purposes
+
+    let playlistVideoIds = []
+    data.items.forEach(song => {
+        playlistVideoIds.push(song.snippet.resourceId.videoId)
+    });
+
+    console.log("\nVideo Ids: " + playlistVideoIds)
 }
 
 const server = http.createServer(function(req, res) {
