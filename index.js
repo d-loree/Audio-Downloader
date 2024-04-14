@@ -32,8 +32,14 @@ function getYoutubeVideoIdFromLink(youtubeLink) {
     return match ? match[1] : null;
 }
 
-async function fetchYoutubePlaylistSongs(playlistTestId) {
-    const response = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistTestId}&key=${YOUTUBE_API_KEY}&maxResults=${MAX_PLAYLIST_RESULTS}`);
+function getYoutubePlaylistIdFromLink(youtubeLink) {
+    const youtubePlaylistIdPattern = /[?&]list=(PL[a-zA-Z0-9_-]+)/;
+    const match = youtubeLink.match(youtubePlaylistIdPattern);
+    return match ? match[1] : null;
+}
+
+async function fetchYoutubePlaylistSongs(playlistId) {
+    const response = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&key=${YOUTUBE_API_KEY}&maxResults=${MAX_PLAYLIST_RESULTS}`);
     const data = await response.json();
 
     // console.log(JSON.stringify(data.items)); // For testing purposes
@@ -43,10 +49,12 @@ async function fetchYoutubePlaylistSongs(playlistTestId) {
         playlistVideosMap.set(song.snippet.resourceId.videoId, song.snippet.title)
     });
 
-    console.log("\nVideos in playlist: ") // log videos in playlist, id and title
+    console.log("\nVideos in playlist: ") // log videos in playlist, id and title for testing
     playlistVideosMap.forEach((value, key) => {
         console.log(`${key}: ${value}`);
     });
+
+    return playlistVideosMap;
 }
 
 async function youtubeSingleSongDownload(videoId, res) {
@@ -75,6 +83,10 @@ async function youtubeSingleSongDownload(videoId, res) {
         res.end(JSON.stringify({ error: 'Failed to download audio' }));
         responseSent = true
     });
+}
+
+async function youtubePlaylistDownload(playlistId, res) {
+    playListMap = fetchYoutubePlaylistSongs(playlistId)
 }
 
 const server = http.createServer(function(req, res) {
@@ -109,13 +121,20 @@ const server = http.createServer(function(req, res) {
                     // download song or playlist and send back to user
                     if (!responseSent) {
                         if (musicPlatform === 'youtube' && type === 'song') {
-                            let videoId = getYoutubeVideoIdFromLink(clientData.link)
-                            await youtubeSingleSongDownload(videoId, res) // send a single song download to user
+                            let videoId = getYoutubeVideoIdFromLink(clientData.link);
+                            await youtubeSingleSongDownload(videoId, res); // send a single song download to user
+                        }
+                        else if (musicPlatform === 'youtube' && type === 'playlist') {
+                            let playlistId = getYoutubePlaylistIdFromLink(clientData.link)
+                            await youtubePlaylistDownload(playlistId, res); // send a playlist download to user
+
+                            res.writeHead(200, {'Content-Type': 'application/json'});
+                            res.end(JSON.stringify({ message: 'Playlist Uploaded!' }));
                         }
                         else {
                             res.writeHead(200, {'Content-Type': 'application/json'});
-                            res.end(JSON.stringify({ error: 'Invalid Link' }))
-                            responseSent = true
+                            res.end(JSON.stringify({ error: 'Invalid Link' }));
+                            responseSent = true;
                         }
                     }
                 }
