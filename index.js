@@ -26,7 +26,13 @@ function getLinkType(link) {
     }
 }
 
-async function fetchPlaylistSongs(playlistTestId) {
+function getYoutubeVideoIdFromLink(youtubeLink) {
+    const youtubeSongIdPattern = /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    const match = youtubeLink.match(youtubeSongIdPattern);
+    return match ? match[1] : null;
+}
+
+async function fetchYoutubePlaylistSongs(playlistTestId) {
     const response = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistTestId}&key=${YOUTUBE_API_KEY}&maxResults=${MAX_PLAYLIST_RESULTS}`);
     const data = await response.json();
 
@@ -43,18 +49,45 @@ async function fetchPlaylistSongs(playlistTestId) {
     });
 }
 
+async function youtubeSingleSongDownload(videoId, res) {
+    ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`).then(info => {
+        const title = info.videoDetails.title.replace(/[^\w\s]/gi, '');
+        res.writeHead(200, {
+            'Content-Type': 'audio/mpeg',
+            'filename': `${title}.mp3`
+        });
+
+        // Stream the audio from ytdl-core to ffmpeg to convert it to mp3
+        const stream = ytdl(`https://www.youtube.com/watch?v=${videoId}`, { quality: 'highestaudio', filter: 'audioonly' });
+        ffmpeg(stream)
+            .audioBitrate(128)
+            .toFormat('mp3')
+            .on('error', (error) => {
+                console.log('Error: ' + error.message);
+                res.end();
+            })
+            .pipe(res, { end: true }); // Pipe mp3 to client
+            responseSent = true
+
+    }).catch(error => {
+        console.error(error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to download audio' }));
+        responseSent = true
+    });
+}
+
 const server = http.createServer(function(req, res) {
 
     // Handle download request from users
     if (req.method === "POST" && req.url === '/requestDownload') {
-        fetchPlaylistSongs('PLPepSlipiG-YGiI2igngOC0wpKAsclGkx')
         let body = ''
         req.on('data', chunk => {
             // Convert Buffer to string
             body += chunk.toString()
         });
         let responseSent = false // Boolean so we do not send multiple responses
-        req.on('end', () => {
+        req.on('end', async () => {
             try {
                 // Parse the JSON data
                 const clientData = JSON.parse(body)
@@ -76,31 +109,8 @@ const server = http.createServer(function(req, res) {
                     // download song or playlist and send back to user
                     if (!responseSent) {
                         if (musicPlatform === 'youtube' && type === 'song') {
-                            ytdl.getInfo(clientData.link).then(info => {
-                                const title = info.videoDetails.title.replace(/[^\w\s]/gi, '');
-                                res.writeHead(200, {
-                                    'Content-Type': 'audio/mpeg',
-                                    'filename': `${title}.mp3`
-                                });
-
-                                // Stream the audio from ytdl-core to ffmpeg to convert it to mp3
-                                const stream = ytdl(clientData.link, { quality: 'highestaudio', filter: 'audioonly' });
-                                ffmpeg(stream)
-                                    .audioBitrate(128)
-                                    .toFormat('mp3')
-                                    .on('error', (error) => {
-                                        console.log('Error: ' + error.message);
-                                        res.end();
-                                    })
-                                    .pipe(res, { end: true }); // Pipe mp3 to client
-                                    responseSent = true
-
-                            }).catch(error => {
-                                console.error(error);
-                                res.writeHead(500, { 'Content-Type': 'application/json' });
-                                res.end(JSON.stringify({ error: 'Failed to download audio' }));
-                                responseSent = true
-                            });
+                            let videoId = getYoutubeVideoIdFromLink(clientData.link)
+                            await youtubeSingleSongDownload(videoId, res) // send a single song download to user
                         }
                         else {
                             res.writeHead(200, {'Content-Type': 'application/json'});
