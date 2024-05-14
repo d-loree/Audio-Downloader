@@ -6,6 +6,7 @@ const ffmpeg = require('fluent-ffmpeg');
 const ffmpegStatic = require('ffmpeg-static');
 ffmpeg.setFfmpegPath(ffmpegStatic);
 require('dotenv').config();
+const JSZip = require('jszip');
 
 const port = 3000;
 const YOUTUBE_API_KEY= process.env.YOUTUBE_API_KEY
@@ -41,6 +42,11 @@ function getYoutubePlaylistIdFromLink(youtubeLink) {
 async function fetchYoutubePlaylistSongs(playlistId) {
     const response = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&key=${YOUTUBE_API_KEY}&maxResults=${MAX_PLAYLIST_RESULTS}`);
     const data = await response.json();
+
+    if (!data) {
+        console.log("Issue getting playlist... Maybe playlist is private?") // send error message back to user through response?
+        return new Map()
+    }
 
     // console.log(JSON.stringify(data.items)); // For testing purposes
 
@@ -86,7 +92,32 @@ async function youtubeSingleSongDownload(videoId, res) {
 }
 
 async function youtubePlaylistDownload(playlistId, res) {
-    playListMap = fetchYoutubePlaylistSongs(playlistId)
+    playListMap = await fetchYoutubePlaylistSongs(playlistId) // Get a map of key-value pairs with song_id<->song_name
+    const zip = new JSZip();
+
+    console.log("Attempting playlist download...")
+    // Download each video in playlist and add to zip
+    for (const [key, value] of playListMap) {
+        console.log(`Downloading video ${value}...`);
+        const videoStream = ytdl(`http://www.youtube.com/watch?v=${key}`, { quality: 'highestaudio' });
+        
+        const chunks = [];
+        for await (const chunk of videoStream) {
+            chunks.push(chunk);
+        }
+        
+        const videoBuffer = Buffer.concat(chunks);
+        zip.file(`${value}.mp4`, videoBuffer);
+        console.log(`Added ${value}.mp4 to ZIP.`);
+    }
+
+    // Save ZIP file - should be sending to client though
+    const content = await zip.generateAsync({ type: "nodebuffer" });
+    fs.writeFileSync('playlist.zip', content);
+    console.log('playlist.zip has been saved.');
+
+    res.writeHead(200, {'Content-Type': 'application/json'});
+    res.end(JSON.stringify({ message: 'Playlist Uploaded!' }));
 }
 
 const server = http.createServer(function(req, res) {
@@ -98,7 +129,7 @@ const server = http.createServer(function(req, res) {
             // Convert Buffer to string
             body += chunk.toString()
         });
-        let responseSent = false // Boolean so we do not send multiple responses
+        var responseSent = false // Boolean so we do not send multiple responses
         req.on('end', async () => {
             try {
                 // Parse the JSON data
@@ -127,9 +158,6 @@ const server = http.createServer(function(req, res) {
                         else if (musicPlatform === 'youtube' && type === 'playlist') {
                             let playlistId = getYoutubePlaylistIdFromLink(clientData.link)
                             await youtubePlaylistDownload(playlistId, res); // send a playlist download to user
-
-                            res.writeHead(200, {'Content-Type': 'application/json'});
-                            res.end(JSON.stringify({ message: 'Playlist Uploaded!' }));
                         }
                         else {
                             res.writeHead(200, {'Content-Type': 'application/json'});
