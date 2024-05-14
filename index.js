@@ -7,6 +7,7 @@ const ffmpegStatic = require('ffmpeg-static');
 ffmpeg.setFfmpegPath(ffmpegStatic);
 require('dotenv').config();
 const JSZip = require('jszip');
+const sanitize = require('sanitize-filename');
 
 const port = 3000;
 const YOUTUBE_API_KEY= process.env.YOUTUBE_API_KEY
@@ -107,8 +108,9 @@ async function youtubePlaylistDownload(playlistId, res) {
         }
         
         const videoBuffer = Buffer.concat(chunks);
-        zip.file(`${value}.mp4`, videoBuffer);
-        console.log(`Added ${value}.mp4 to ZIP.`);
+        const sanitizedFileName = sanitize(`${value}.mp3`);
+        zip.file(sanitizedFileName, videoBuffer);
+        console.log(`Added ${value}.mp3 to ZIP.`);
     }
 
     // Save ZIP file - should be sending to client though
