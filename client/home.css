@@ -68,13 +68,10 @@ button {
 
 button:disabled {
     background-color: rgb(70, 39, 92);
+    color: rgb(122, 120, 120);
 }
 
-button:disabled:hover {
-    background-color: rgb(255, 0, 55);
-}
-
-button:hover {
+button:enabled:hover {
     background-color: #9856b1;
     transform: scale(1.025);
 }
