@@ -93,39 +93,49 @@ async function youtubeSingleSongDownload(videoId, res) {
 }
 
 async function youtubePlaylistDownload(playlistId, res) {
-    playListMap = await fetchYoutubePlaylistSongs(playlistId) // Get a map of key-value pairs with song_id<->song_name
-    const zip = new JSZip();
+    try {
+        playListMap = await fetchYoutubePlaylistSongs(playlistId) // Get a map of key-value pairs with song_id<->song_name
+        const zip = new JSZip();
 
-    console.log("Attempting playlist download...")
-    // Download each video in playlist and add to zip
-    for (const [key, value] of playListMap) {
-        try {
-            console.log(`Downloading video ${value}...`);
-            const videoStream = ytdl(`http://www.youtube.com/watch?v=${key}`, { quality: 'highestaudio' });
-            
-            const chunks = [];
-            for await (const chunk of videoStream) {
-                chunks.push(chunk);
+        console.log("Attempting playlist download...")
+        // Download each video in playlist and add to zip
+        for (const [key, value] of playListMap) {
+            try {
+                console.log(`Downloading video ${value}...`);
+                const videoStream = ytdl(`http://www.youtube.com/watch?v=${key}`, { quality: 'highestaudio' });
+                
+                const chunks = [];
+                for await (const chunk of videoStream) {
+                    chunks.push(chunk);
+                }
+                
+                const videoBuffer = Buffer.concat(chunks);
+                const sanitizedFileName = sanitize(`${value}.mp3`);
+                zip.file(sanitizedFileName, videoBuffer);
+                console.log(`Added ${value}.mp3 to ZIP.`);
             }
-            
-            const videoBuffer = Buffer.concat(chunks);
-            const sanitizedFileName = sanitize(`${value}.mp3`);
-            zip.file(sanitizedFileName, videoBuffer);
-            console.log(`Added ${value}.mp3 to ZIP.`);
+            catch (error) {
+                // Handle downloading file issue so the rest can download
+                console.log(`Error while downloading ${key}:${value}`);
+            }
         }
-        catch (error) {
-            // Handle downloading file issue so the rest can download
-            console.log(`Error while downloading ${key}:${value}`);
-        }
+
+        // Save ZIP file in memory
+        const content = await zip.generateAsync({ type: "nodebuffer" });
+        fs.writeFileSync('playlist.zip', content);
+        console.log('playlist.zip has been saved.');
+
+        // send zip file to client
+        res.writeHead(200, {
+            'Content-Type': 'application/zip',
+            'Content-Disposition': 'attachment; filename=playlist.zip'
+        });
+        res.end(content);
+    } catch (error) {
+        console.error("ERROR while creating ZIP file: ", error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to download playlist' }));
     }
-
-    // Save ZIP file - should be sending to client though
-    const content = await zip.generateAsync({ type: "nodebuffer" });
-    fs.writeFileSync('playlist.zip', content);
-    console.log('playlist.zip has been saved.');
-
-    res.writeHead(200, {'Content-Type': 'application/json'});
-    res.end(JSON.stringify({ message: 'Playlist Uploaded!' }));
 }
 
 const server = http.createServer(function(req, res) {

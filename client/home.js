@@ -75,6 +75,21 @@ button.addEventListener('click', async _ => {
                 notifyText.innerHTML = "Audio Downloaded"; 
             });
         }
+        else if (contentType.includes('application/zip')) {
+            // Handle ZIP file download
+            response.blob().then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'playlist.zip';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+            
+                notifyText.innerHTML = "Playlist Downloaded";
+            });
+        }
     } 
     catch(error) {
         notifyText.classList.add("error");
