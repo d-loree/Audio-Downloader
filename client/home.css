@@ -12,8 +12,24 @@ body {
     align-items: center;
 }
 
+.terms-link {
+    text-decoration: none;
+    color: #9924c7;
+}
+
+.terms-link:hover {
+    color: #5d0d7c;
+}
+
 p {
     text-align: center;
+}
+
+.disclaimer {
+    margin: 0;
+    padding: 0;
+    font-size: small;
+    font-style: italic;
 }
 
 .center-box {
@@ -38,7 +54,7 @@ p {
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
   }
 
-  button {
+button {
     background-color: rgb(139, 50, 202);
     color: white;
     border: none;
@@ -50,7 +66,12 @@ p {
     transition: background-color 0.3s ease, transform 0.3s ease;
 }
 
-button:hover {
+button:disabled {
+    background-color: rgb(70, 39, 92);
+    color: rgb(122, 120, 120);
+}
+
+button:enabled:hover {
     background-color: #9856b1;
     transform: scale(1.025);
 }

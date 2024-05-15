@@ -9,8 +9,11 @@
   "author": "dylan loree",
   "license": "ISC",
   "dependencies": {
+    "dotenv": "^16.4.5",
     "ffmpeg-static": "^5.2.0",
     "fluent-ffmpeg": "^2.1.2",
+    "jszip": "^3.10.1",
+    "sanitize-filename": "^1.6.3",
     "ytdl-core": "^4.11.5"
   }
 }
