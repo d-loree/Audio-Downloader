@@ -2,6 +2,14 @@ const button = document.getElementById('download-btn');
 const searchField = document.getElementById('search-field');
 const notifyText = document.getElementById('notify-msg-area');
 
+const downloadBtn = document.getElementById('download-btn');
+const agreeTerms = document.getElementById('agree-terms');
+
+// Enable the download button only when the terms checkbox is checked
+agreeTerms.addEventListener('change', function () {
+    downloadBtn.disabled = !agreeTerms.checked;
+});
+    
 button.addEventListener('click', async _ => {
     try {   
         const userLink = searchField.value.trim();

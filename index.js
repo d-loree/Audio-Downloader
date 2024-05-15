@@ -99,18 +99,24 @@ async function youtubePlaylistDownload(playlistId, res) {
     console.log("Attempting playlist download...")
     // Download each video in playlist and add to zip
     for (const [key, value] of playListMap) {
-        console.log(`Downloading video ${value}...`);
-        const videoStream = ytdl(`http://www.youtube.com/watch?v=${key}`, { quality: 'highestaudio' });
-        
-        const chunks = [];
-        for await (const chunk of videoStream) {
-            chunks.push(chunk);
+        try {
+            console.log(`Downloading video ${value}...`);
+            const videoStream = ytdl(`http://www.youtube.com/watch?v=${key}`, { quality: 'highestaudio' });
+            
+            const chunks = [];
+            for await (const chunk of videoStream) {
+                chunks.push(chunk);
+            }
+            
+            const videoBuffer = Buffer.concat(chunks);
+            const sanitizedFileName = sanitize(`${value}.mp3`);
+            zip.file(sanitizedFileName, videoBuffer);
+            console.log(`Added ${value}.mp3 to ZIP.`);
         }
-        
-        const videoBuffer = Buffer.concat(chunks);
-        const sanitizedFileName = sanitize(`${value}.mp3`);
-        zip.file(sanitizedFileName, videoBuffer);
-        console.log(`Added ${value}.mp3 to ZIP.`);
+        catch (error) {
+            // Handle downloading file issue so the rest can download
+            console.log(`Error while downloading ${key}:${value}`);
+        }
     }
 
     // Save ZIP file - should be sending to client though
