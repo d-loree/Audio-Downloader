@@ -1,7 +1,6 @@
 const button = document.getElementById('download-btn');
 const searchField = document.getElementById('search-field');
 const notifyText = document.getElementById('notify-msg-area');
-
 const downloadBtn = document.getElementById('download-btn');
 const agreeTerms = document.getElementById('agree-terms');
 
@@ -15,20 +14,13 @@ button.addEventListener('click', async _ => {
         const userLink = searchField.value.trim();
 
         if (userLink == "") {
-            notifyText.style.display = "flex";
-            notifyText.classList.add("error");
-            notifyText.innerHTML = "No Link"; 
+            displayError("No Link")
         }
         else {
-            searchField.value = ''
-            notifyText.classList.remove("error");
-            notifyText.style.display = "none";
-            notifyText.innerHTML = ""; 
+            clearNotifyMessage()
 
             // Notify user of download attempt
-            notifyText.classList.remove("error");
-            notifyText.style.display = "flex";
-            notifyText.innerHTML = "Downloading Audio"; 
+            displayMessage("Downloading Audio")
 
             const response = await fetch('requestDownload', {
                 method: 'POST',
@@ -41,31 +33,23 @@ button.addEventListener('click', async _ => {
             });
 
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                let data = await response.json()
+                if (data.error) { throw new Error(data.error) }
+                else throw new Error('Network response was not ok');
             }
 
             // Check the response's Content-Type header
             const contentType = response.headers.get('Content-Type');
 
             if (contentType.includes('application/json')) {
-                // Parse JSON from the response
-                const data = await response.json(); 
+                // Handle JSON responses (should be message)
+                const data = await response.json(); // Parse JSON from the response
 
-                if (data.error) {
-                    // handle error response from server
-                    notifyText.classList.add("error");
-                    notifyText.style.display = "flex";
-                    notifyText.innerHTML = data.error;
-                } 
-                else if (data.message) {
-                    // handle message response from server
-                    notifyText.classList.remove("error");
-                    notifyText.style.display = "flex";
-                    notifyText.innerHTML = data.message; 
-                }
+                // Handle message response from server
+                if (data.message) { displayMessage(data.message) }
             }
             else if (contentType.includes('audio/mpeg')) {
-                // Handle MP3 file download
+                // Handle single MP3 file download
                 filename = response.headers.get('filename')
                 
                 response.blob().then(blob => {
@@ -79,7 +63,7 @@ button.addEventListener('click', async _ => {
                     a.click();
                     window.URL.revokeObjectURL(url);
 
-                    notifyText.innerHTML = "Audio Downloaded"; 
+                    displayMessage("Audio Downloaded")
                 });
             }
             else if (contentType.includes('application/zip')) {
@@ -94,14 +78,31 @@ button.addEventListener('click', async _ => {
                     a.click();
                     window.URL.revokeObjectURL(url);
                 
-                    notifyText.innerHTML = "Playlist Downloaded";
+                    displayMessage("Playlist Downloaded")
                 });
             }
         }
     } 
     catch(error) {
-        notifyText.classList.add("error");
-        notifyText.style.display = "flex";
-        notifyText.innerHTML = `Error: ${error.message}`;
+        displayError(error)
     }
 });
+
+async function displayMessage(message) {
+    notifyText.classList.remove("error");
+    notifyText.style.display = "flex";
+    notifyText.innerHTML = message; 
+}
+
+async function displayError(error) {
+    notifyText.classList.add("error");
+    notifyText.style.display = "flex";
+    notifyText.innerHTML = error;
+}
+
+async function clearNotifyMessage() {
+    searchField.value = ''
+    notifyText.classList.remove("error");
+    notifyText.style.display = "none";
+    notifyText.innerHTML = ""; 
+}

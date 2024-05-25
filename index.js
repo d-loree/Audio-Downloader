@@ -13,6 +13,12 @@ const port = process.env.PORT || 3000;
 import { getLinkType, getYoutubeVideoIdFromLink, getYoutubePlaylistIdFromLink } from './utils/youtube/helpers.js';
 import { youtubeSingleSongDownload, youtubePlaylistDownload } from './utils/youtube/downloads.js'
 
+function sendErrorResponseToClient(res, status, contentType, errorMessage, responseSent) {
+    res.writeHead(status, {'Content-Type': contentType})
+    res.end(JSON.stringify({ error: errorMessage }))
+    responseSent = true;
+}
+
 const server = http.createServer(function(req, res) {
 
     // Handle download request from users
@@ -28,42 +34,30 @@ const server = http.createServer(function(req, res) {
                 // Parse the JSON data
                 const clientData = JSON.parse(body)
 
-                // get the type of link / check if valid
+                // get the type of link
                 const { musicPlatform, type } = getLinkType(clientData.link)
                 console.log("clientData.link: " + clientData.link) // Log requested link
                 console.log("Link Type: " + musicPlatform + " " + type) // Log link info
 
-                if (musicPlatform == 'invalid' || type == 'invalid') {
-                    // Let user know the link is invalid
-                    if(!responseSent) {
-                        res.writeHead(200, {'Content-Type': 'application/json'});
-                        res.end(JSON.stringify({ error: 'Invalid Link' }))
-                        responseSent = true
+                // download song or playlist and send back to user
+                if (!responseSent) {
+                    if (musicPlatform === 'youtube' && type === 'song') {
+                        let videoId = getYoutubeVideoIdFromLink(clientData.link);
+                        await youtubeSingleSongDownload(videoId, res, responseSent); // send a single song download to user
                     }
-                }
-                else {
-                    // download song or playlist and send back to user
-                    if (!responseSent) {
-                        if (musicPlatform === 'youtube' && type === 'song') {
-                            let videoId = getYoutubeVideoIdFromLink(clientData.link);
-                            await youtubeSingleSongDownload(videoId, res, responseSent); // send a single song download to user
-                        }
-                        else if (musicPlatform === 'youtube' && type === 'playlist') {
-                            let playlistId = getYoutubePlaylistIdFromLink(clientData.link)
-                            await youtubePlaylistDownload(playlistId, res, responseSent); // send a playlist download to user
-                        }
-                        else {
-                            res.writeHead(200, {'Content-Type': 'application/json'});
-                            res.end(JSON.stringify({ error: 'Invalid Link' }));
-                            responseSent = true;
-                        }
+                    else if (musicPlatform === 'youtube' && type === 'playlist') {
+                        let playlistId = getYoutubePlaylistIdFromLink(clientData.link)
+                        await youtubePlaylistDownload(playlistId, res, responseSent); // send a playlist download to user
+                    }
+                    else {
+                        // Handle invalid or bad link
+                        sendErrorResponseToClient(res, 400, 'application/json', 'Invalid or bad link', responseSent)
                     }
                 }
             } 
             catch (error) {
                 // Handle JSON parsing error
-                res.writeHead(400, {'Content-Type': 'application/json'})
-                res.end(JSON.stringify({ error: 'Bad request' }))
+                sendErrorResponseToClient(400, 'application/json', 'Bad request', responseSent)
             }
         });
     }
@@ -102,7 +96,7 @@ const server = http.createServer(function(req, res) {
 
 server.listen(port, function(error) {
     if (error) {
-        console.log("Error:", error);
+        console.log("Error: ", error);
     } 
     else {
         console.log("Server is listening on port", port);
