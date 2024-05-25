@@ -1,142 +1,17 @@
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
-const ytdl = require('ytdl-core');
-const ffmpeg = require('fluent-ffmpeg');
-const ffmpegStatic = require('ffmpeg-static');
+import http from 'http';
+import fs from 'fs';
+import path from 'path';
+import ffmpeg from 'fluent-ffmpeg';
+import ffmpegStatic from 'ffmpeg-static';
+import dotenv from 'dotenv';
+
 ffmpeg.setFfmpegPath(ffmpegStatic);
-require('dotenv').config();
-const JSZip = require('jszip');
-const sanitize = require('sanitize-filename');
+dotenv.config();
 
-const port = 3000;
-const YOUTUBE_API_KEY= process.env.YOUTUBE_API_KEY
-const MAX_PLAYLIST_RESULTS = 20
+const port = process.env.PORT || 3000;
 
-
-
-// Get the link type: The music platform and its type, playlist or song
-let youtubeSongPattern = /^(?:https?:\/\/)?(?:www\.youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)(?:&.*)?$/;
-let youtubePlaylistPattern = /^https:\/\/www\.youtube\.com\/playlist\?list=(PL[a-zA-Z0-9_-]+)$/;
-function getLinkType(link) {
-    if (youtubeSongPattern.test(link)) {
-        return { musicPlatform: 'youtube', type: 'song' };
-    } else if (youtubePlaylistPattern.test(link)) {
-        return { musicPlatform: 'youtube', type: 'playlist' };
-    } else {
-        return { musicPlatform: 'invalid', type: 'invalid' };
-    }
-}
-
-function getYoutubeVideoIdFromLink(youtubeLink) {
-    const youtubeSongIdPattern = /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-    const match = youtubeLink.match(youtubeSongIdPattern);
-    return match ? match[1] : null;
-}
-
-function getYoutubePlaylistIdFromLink(youtubeLink) {
-    const youtubePlaylistIdPattern = /[?&]list=(PL[a-zA-Z0-9_-]+)/;
-    const match = youtubeLink.match(youtubePlaylistIdPattern);
-    return match ? match[1] : null;
-}
-
-async function fetchYoutubePlaylistSongs(playlistId) {
-    const response = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&key=${YOUTUBE_API_KEY}&maxResults=${MAX_PLAYLIST_RESULTS}`);
-    const data = await response.json();
-
-    if (!data) {
-        console.log("Issue getting playlist... Maybe playlist is private?") // send error message back to user through response?
-        return new Map()
-    }
-
-    // console.log(JSON.stringify(data.items)); // For testing purposes
-
-    let playlistVideosMap = new Map([]) // Store video ids with titles for file names
-    data.items.forEach(song => {
-        playlistVideosMap.set(song.snippet.resourceId.videoId, song.snippet.title)
-    });
-
-    console.log("\nVideos in playlist: ") // log videos in playlist, id and title for testing
-    playlistVideosMap.forEach((value, key) => {
-        console.log(`${key}: ${value}`);
-    });
-
-    return playlistVideosMap;
-}
-
-async function youtubeSingleSongDownload(videoId, res) {
-    ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`).then(info => {
-        const title = info.videoDetails.title.replace(/[^\w\s]/gi, '');
-        res.writeHead(200, {
-            'Content-Type': 'audio/mpeg',
-            'filename': `${title}.mp3`
-        });
-
-        // Stream the audio from ytdl-core to ffmpeg to convert it to mp3
-        const stream = ytdl(`https://www.youtube.com/watch?v=${videoId}`, { quality: 'highestaudio', filter: 'audioonly' });
-        ffmpeg(stream)
-            .audioBitrate(128)
-            .toFormat('mp3')
-            .on('error', (error) => {
-                console.log('Error: ' + error.message);
-                res.end();
-            })
-            .pipe(res, { end: true }); // Pipe mp3 to client
-            responseSent = true
-
-    }).catch(error => {
-        console.error(error);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Failed to download audio' }));
-        responseSent = true
-    });
-}
-
-async function youtubePlaylistDownload(playlistId, res) {
-    try {
-        playListMap = await fetchYoutubePlaylistSongs(playlistId) // Get a map of key-value pairs with song_id<->song_name
-        const zip = new JSZip();
-
-        console.log("Attempting playlist download...")
-        // Download each video in playlist and add to zip
-        for (const [key, value] of playListMap) {
-            try {
-                console.log(`Downloading video ${value}...`);
-                const videoStream = ytdl(`http://www.youtube.com/watch?v=${key}`, { quality: 'highestaudio' });
-                
-                const chunks = [];
-                for await (const chunk of videoStream) {
-                    chunks.push(chunk);
-                }
-                
-                const videoBuffer = Buffer.concat(chunks);
-                const sanitizedFileName = sanitize(`${value}.mp3`);
-                zip.file(sanitizedFileName, videoBuffer);
-                console.log(`Added ${value}.mp3 to ZIP.`);
-            }
-            catch (error) {
-                // Handle downloading file issue so the rest can download
-                console.log(`Error while downloading ${key}:${value}`);
-            }
-        }
-
-        // Save ZIP file in memory
-        const content = await zip.generateAsync({ type: "nodebuffer" });
-        fs.writeFileSync('playlist.zip', content);
-        console.log('playlist.zip has been saved.');
-
-        // send zip file to client
-        res.writeHead(200, {
-            'Content-Type': 'application/zip',
-            'Content-Disposition': 'attachment; filename=playlist.zip'
-        });
-        res.end(content);
-    } catch (error) {
-        console.error("ERROR while creating ZIP file: ", error);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Failed to download playlist' }));
-    }
-}
+import { getLinkType, getYoutubeVideoIdFromLink, getYoutubePlaylistIdFromLink } from './utils/youtube/helpers.js';
+import { youtubeSingleSongDownload, youtubePlaylistDownload } from './utils/youtube/downloads.js'
 
 const server = http.createServer(function(req, res) {
 
@@ -147,7 +22,7 @@ const server = http.createServer(function(req, res) {
             // Convert Buffer to string
             body += chunk.toString()
         });
-        var responseSent = false // Boolean so we do not send multiple responses
+        let responseSent = false // Boolean so we do not send multiple responses
         req.on('end', async () => {
             try {
                 // Parse the JSON data
@@ -171,11 +46,11 @@ const server = http.createServer(function(req, res) {
                     if (!responseSent) {
                         if (musicPlatform === 'youtube' && type === 'song') {
                             let videoId = getYoutubeVideoIdFromLink(clientData.link);
-                            await youtubeSingleSongDownload(videoId, res); // send a single song download to user
+                            await youtubeSingleSongDownload(videoId, res, responseSent); // send a single song download to user
                         }
                         else if (musicPlatform === 'youtube' && type === 'playlist') {
                             let playlistId = getYoutubePlaylistIdFromLink(clientData.link)
-                            await youtubePlaylistDownload(playlistId, res); // send a playlist download to user
+                            await youtubePlaylistDownload(playlistId, res, responseSent); // send a playlist download to user
                         }
                         else {
                             res.writeHead(200, {'Content-Type': 'application/json'});
