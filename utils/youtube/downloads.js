@@ -11,13 +11,14 @@ dotenv.config();
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY
 const MAX_PLAYLIST_RESULTS = process.env.MAX_PLAYLIST_RESULTS || 20
 
+import { sendErrorResponseToClient } from './helpers.js';
+
 function fetchYoutubePlaylistSongs(playlistId) {
     return fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&key=${YOUTUBE_API_KEY}&maxResults=${MAX_PLAYLIST_RESULTS}`)
     .then(response => response.json())
     .then(data => { 
-        if (!data) {
-            console.log("Issue getting playlist... Maybe playlist is private?") // send error message back to user through response?
-            return new Map()
+        if (!data.items) {
+            throw new Error("No data received from playlist link")
         }
 
         let playlistVideosMap = new Map([]) // DS to store video ids with titles for file names
@@ -33,7 +34,7 @@ function fetchYoutubePlaylistSongs(playlistId) {
         return playlistVideosMap;
     })
     .catch(error => {
-        console.log("ERROR: " + error)
+        console.log(error)
         // Let user know error???
     })
 }
@@ -73,6 +74,10 @@ export async function youtubePlaylistDownload(playlistId, res, responseSent) {
         let playlistMap = await fetchYoutubePlaylistSongs(playlistId) // Get a map of key-value pairs with song_id<->song_name
         const zip = new JSZip();
 
+        if (!playlistMap) {
+            throw new Error("Failed to download playlist, maybe playlist is private?")
+        }
+
         console.log("Attempting playlist download...")
         // Download each video in playlist and add to zip
         for (const [key, value] of playlistMap) {
@@ -92,7 +97,7 @@ export async function youtubePlaylistDownload(playlistId, res, responseSent) {
             }
             catch (error) {
                 // Handle downloading file issue so the rest can continue to download
-                console.log(`Error while downloading ${key}:${value}`); // Maybe let user know about songs that were not downloaded?
+                console.log(`Error while downloading ${key}:${value}`);
             }
         }
 
@@ -110,9 +115,6 @@ export async function youtubePlaylistDownload(playlistId, res, responseSent) {
         responseSent = true
     } 
     catch (error) {
-        console.error("ERROR while creating ZIP file: ", error);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Failed to download playlist' }));
-        responseSent = true
+        sendErrorResponseToClient(res, 404, "application/json", error.message, responseSent)
     }
 }

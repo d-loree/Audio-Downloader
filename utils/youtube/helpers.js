@@ -23,3 +23,10 @@ export function getYoutubePlaylistIdFromLink(youtubeLink) {
     const match = youtubeLink.match(youtubePlaylistIdPattern);
     return match ? match[1] : null;
 }
+
+export function sendErrorResponseToClient(res, status, contentType, errorMessage, responseSent) {
+    console.log("ERROR: " + errorMessage)
+    res.writeHead(status, {'Content-Type': contentType})
+    res.end(JSON.stringify({ error: errorMessage }))
+    responseSent = true;
+}

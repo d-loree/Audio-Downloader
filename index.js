@@ -10,14 +10,8 @@ dotenv.config();
 
 const port = process.env.PORT || 3000;
 
-import { getLinkType, getYoutubeVideoIdFromLink, getYoutubePlaylistIdFromLink } from './utils/youtube/helpers.js';
+import { getLinkType, getYoutubeVideoIdFromLink, getYoutubePlaylistIdFromLink, sendErrorResponseToClient } from './utils/youtube/helpers.js';
 import { youtubeSingleSongDownload, youtubePlaylistDownload } from './utils/youtube/downloads.js'
-
-function sendErrorResponseToClient(res, status, contentType, errorMessage, responseSent) {
-    res.writeHead(status, {'Content-Type': contentType})
-    res.end(JSON.stringify({ error: errorMessage }))
-    responseSent = true;
-}
 
 const server = http.createServer(function(req, res) {
 
@@ -89,8 +83,7 @@ const server = http.createServer(function(req, res) {
         });
     }
     else {
-        res.writeHead(404)
-        res.end('Not Found')
+        sendErrorResponseToClient(res, 404, "application/json", "Not found", responseSent)
     }
 });
 
