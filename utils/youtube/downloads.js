@@ -18,7 +18,7 @@ function fetchYoutubePlaylistSongs(playlistId) {
     .then(response => response.json())
     .then(data => { 
         if (!data.items) {
-            throw new Error("No data received from playlist link")
+            throw new Error("Failed to download playlist, maybe playlist is private?")
         }
 
         let playlistVideosMap = new Map([]) // DS to store video ids with titles for file names
@@ -34,8 +34,7 @@ function fetchYoutubePlaylistSongs(playlistId) {
         return playlistVideosMap;
     })
     .catch(error => {
-        console.log(error)
-        // Let user know error???
+        throw new Error(error.message)
     })
 }
 
@@ -73,10 +72,6 @@ export async function youtubePlaylistDownload(playlistId, res, responseSent) {
     try {
         let playlistMap = await fetchYoutubePlaylistSongs(playlistId) // Get a map of key-value pairs with song_id<->song_name
         const zip = new JSZip();
-
-        if (!playlistMap) {
-            throw new Error("Failed to download playlist, maybe playlist is private?")
-        }
 
         console.log("Attempting playlist download...")
         // Download each video in playlist and add to zip

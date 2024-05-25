@@ -25,7 +25,7 @@ export function getYoutubePlaylistIdFromLink(youtubeLink) {
 }
 
 export function sendErrorResponseToClient(res, status, contentType, errorMessage, responseSent) {
-    console.log("ERROR: " + errorMessage)
+    console.log(errorMessage)
     res.writeHead(status, {'Content-Type': contentType})
     res.end(JSON.stringify({ error: errorMessage }))
     responseSent = true;
