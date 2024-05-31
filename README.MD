@@ -1,5 +1,7 @@
 # Audio Downloader
 
+Note: This applicatrion is still in production. As of now, only youtube songs and playlists can be downloaded. 
+
 ## Introduction
 Audio Downloader allows users to download songs from SoundCloud or YouTube for personal use. 
 
